@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+*.egg-info/
+
+# Streamlit secrets — NEVER commit API keys
+.streamlit/secrets.toml
+
+# Database
+*.db
+*.sqlite3
+
+# Model weight cache
+.model_cache/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Data (keep provenance-tracked samples only; ignore large/raw dumps if added later)
+app/data/raw/*.zip
+app/data/raw/*.tar.gz
