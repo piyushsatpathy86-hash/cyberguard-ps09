@@ -1,64 +1,67 @@
 """
-Shared contract for all three detection engines (phishing, deepfake, anomaly).
+schemas/detection_result.py
+The shared contract every detection engine (phishing_detector.py,
+deepfake_detector.py, anomaly_detector.py) returns. Lock this first —
+it's what lets risk_scorer.py, explainability.py, and response_engine.py
+each be written once and reused across all three scenarios.
 
-CRITICAL: This file is Task 4 in the build order. Once this shape is agreed
-by the team, risk_scorer.py, explainability.py, and response_engine.py can
-each be written ONCE and reused across all scenarios, and the three
-detector owners can work fully in parallel.
-
-Do not change field names after the team has started building against this
-contract without a re-sync — every downstream module depends on this shape.
+Owner: Sai
+Team decisions baked into this schema:
+  - risk_level is 3-stage: Low / Medium / High (not the PS's 5-stage scale)
+  - indicators are weighted objects, not plain strings, so risk_scorer.py
+    can sum weights into a 0-100 score instead of just counting them
 """
 
-from __future__ import annotations
-
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Literal
 
 from pydantic import BaseModel, Field
 
 
+class Indicator(BaseModel):
+    """One piece of evidence a detector found, with a weight risk_scorer.py sums."""
+
+    name: str  # e.g. "sender domain mismatch", "urgent tone", "impossible travel"
+    weight: float = Field(ge=0.0, le=1.0)  # contribution to the risk score, 0-1
+
+
 class DetectionResult(BaseModel):
-    scenario: str  # "phishing" | "deepfake" | "anomaly"
+    """
+    Returned by phishing_detector.py, deepfake_detector.py, and
+    anomaly_detector.py. Fields below the divider are filled in later
+    in the pipeline (risk_scorer.py, explainability.py, response_engine.py) —
+    detectors themselves leave them as None.
+    """
+
+    # --- set by the detector ---
+    scenario: Literal["phishing", "deepfake", "anomaly"]
     event_id: str
     is_threat: bool
-    confidence: float = Field(ge=0.0, le=1.0)  # model confidence 0-1
-    indicators: list[str] = Field(default_factory=list)  # e.g. ["sender domain mismatch", "urgent tone"]
-
-    # Set downstream by risk_scorer.py
-    risk_level: Optional[str] = None  # "Safe" | "Low" | "Medium" | "High" | "Critical"
-    risk_contributing_factors: Optional[list[str]] = None
-
-    # Set downstream by explainability.py (Groq) — only populated for non-Safe results
-    explanation: Optional[str] = None
-    evidence_list: Optional[list[str]] = None
-
-    # Set downstream by response_engine.py
-    recommended_action: Optional[str] = None
-
+    confidence: float = Field(ge=0.0, le=1.0)  # model confidence
+    indicators: list[Indicator] = Field(default_factory=list)
+    source_type: Literal["live", "public_dataset", "self_collected", "synthetic"]
     evaluated_at: datetime = Field(default_factory=datetime.utcnow)
 
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "scenario": "phishing",
-                "event_id": "evt_00123",
-                "is_threat": True,
-                "confidence": 0.91,
-                "indicators": ["urgent OTP request", "look-alike bank domain"],
-                "risk_level": "High",
-                "risk_contributing_factors": ["confidence > 0.85", "2+ indicators"],
-                "explanation": "This message impersonates a bank and pressures immediate action...",
-                "evidence_list": ["sender domain: bank-secure-login.co vs bankofindia.co.in"],
-                "recommended_action": "Warn user, do not click link",
-                "evaluated_at": "2026-09-22T10:00:00Z",
-            }
-        }
+    # --- set later in the pipeline ---
+    risk_level: Optional[Literal["Low", "Medium", "High"]] = None
+    risk_score: Optional[float] = Field(default=None, ge=0.0, le=100.0)
+    explanation: Optional[str] = None          # plain-language reasoning (explainability.py)
+    evidence: Optional[list[str]] = None       # supporting evidence shown in dashboard
+    recommended_action: Optional[str] = None   # set by response_engine.py
+    action_status: Literal["pending", "actioned", "dismissed"] = "pending"
 
 
-# Allowed risk levels, in ascending severity order — import this instead of
-# hardcoding strings so risk_scorer.py stays the single source of truth.
-RISK_LEVELS = ["Safe", "Low", "Medium", "High", "Critical"]
-
-# Allowed scenario names — import this instead of hardcoding strings.
-SCENARIOS = ["phishing", "deepfake", "anomaly"]
+if __name__ == "__main__":
+    # Quick manual check — run `python schemas/detection_result.py` to sanity-check the model.
+    example = DetectionResult(
+        scenario="phishing",
+        event_id="evt_001",
+        is_threat=True,
+        confidence=0.87,
+        indicators=[
+            Indicator(name="look-alike domain", weight=0.4),
+            Indicator(name="urgent OTP request", weight=0.35),
+        ],
+        source_type="self_collected",
+    )
+    print(example.model_dump_json(indent=2))
