@@ -13,8 +13,43 @@ GROQ_MODEL = "llama-3.1-8b-instant"
 EXPLAIN_MIN_RISK_LEVEL = "Low"
 MODEL_CACHE_DIR = BASE_DIR / ".model_cache"
 
+
 # ===================================================================
-# UI / Dashboard Settings
+# Groq API key loader (from team)
+# Resolution order:
+#   1. Streamlit secrets (works when run via `streamlit run`)
+#   2. Reading .streamlit/secrets.toml directly (standalone scripts)
+#   3. GROQ_API_KEY environment variable
+# ===================================================================
+def get_groq_key() -> str:
+    try:
+        import streamlit as st
+        if "GROQ_API_KEY" in st.secrets:
+            return st.secrets["GROQ_API_KEY"]
+    except Exception:
+        pass
+
+    try:
+        import toml
+        secrets_path = BASE_DIR.parent / ".streamlit" / "secrets.toml"
+        if secrets_path.exists():
+            secrets = toml.load(secrets_path)
+            if "GROQ_API_KEY" in secrets:
+                return secrets["GROQ_API_KEY"]
+    except Exception:
+        pass
+
+    if GROQ_API_KEY:
+        return GROQ_API_KEY
+
+    raise RuntimeError(
+        "GROQ_API_KEY not found. Add it to .streamlit/secrets.toml "
+        "(local) or as an environment variable (deployed)."
+    )
+
+
+# ===================================================================
+# UI / Dashboard Settings (frontend team)
 # ===================================================================
 APP_NAME = "CyberGuard AI"
 APP_TAGLINE = "AI-Powered Cyber Threat Detection & Response"
@@ -37,9 +72,9 @@ RISK_COLORS = {
 }
 
 RISK_EMOJI = {
-    "Low": "🟡",
-    "Medium": "🟠",
-    "High": "🔴",
+    "Low": "\U0001F7E1",       # 🟡
+    "Medium": "\U0001F7E0",    # 🟠
+    "High": "\U0001F534",      # 🔴
 }
 
 RISK_TAG = {
