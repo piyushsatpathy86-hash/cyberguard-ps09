@@ -1,7 +1,6 @@
 # app/pages/3_Anomaly.py
 import streamlit as st
-import sys
-import os
+import sys, os
 from datetime import datetime
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -36,7 +35,7 @@ with st.form("anomaly_form"):
         failed_attempts = st.number_input("Failed login attempts (last hour)", min_value=0, max_value=50, value=0)
         time_of_day = st.time_input("Login time", value=datetime.now().time())
 
-    submitted = st.form_submit_button("🔍 Analyse Login", type="primary", use_container_width=True)
+    submitted = st.form_submit_button("🔍 Analyse Login", type="primary", width='stretch')
 
 if submitted and user:
     with st.spinner("Running IsolationForest + rules..."):
@@ -64,18 +63,16 @@ if submitted and user:
             indicators.append("Unrecognised device")
 
         score = min(score, 0.99)
-        is_threat = score > 0.4
 
-        if score > 0.8:
-            risk = "Critical"
-        elif score > 0.6:
+        # 3-level risk
+        if score > 0.60:
             risk = "High"
-        elif score > 0.4:
+        elif score > 0.30:
             risk = "Medium"
-        elif score > 0.2:
-            risk = "Low"
         else:
-            risk = "Safe"
+            risk = "Low"
+
+        is_threat = risk in ("Medium", "High")
 
     st.markdown('<div class="result-card">', unsafe_allow_html=True)
 
@@ -97,20 +94,20 @@ if submitted and user:
         st.success("No anomalous patterns found in this login.")
 
     st.markdown("**📝 Explanation:**")
-    if is_threat:
+    if risk == "High":
         st.warning("This login shows patterns consistent with account takeover.")
+    elif risk == "Medium":
+        st.warning("Some unusual patterns detected. Verify with user.")
     else:
         st.success("Login looks normal based on the provided details.")
 
     st.markdown("**🛡️ Recommended Action:**")
-    if risk in ("Critical", "High"):
+    if risk == "High":
         st.error("🚫 Force re-authentication · Revoke active sessions · Notify user & SOC")
     elif risk == "Medium":
         st.warning("⚠️ Require re-auth · Flag for manual review")
-    elif risk == "Low":
-        st.info("ℹ️ Monitor this account closely")
     else:
-        st.success("✅ No action needed")
+        st.info("ℹ️ Log and monitor")
 
     st.markdown('</div>', unsafe_allow_html=True)
 

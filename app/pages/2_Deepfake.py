@@ -1,7 +1,6 @@
 # app/pages/2_Deepfake.py
 import streamlit as st
-import sys
-import os
+import sys, os
 from datetime import datetime
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -36,24 +35,22 @@ uploaded_file = st.file_uploader(
     type=["jpg", "jpeg", "png", "wav", "mp3", "mp4", "mov"],
 )
 
-analyse_btn = st.button("🔍 Analyse Media", type="primary", use_container_width=True)
+analyse_btn = st.button("🔍 Analyse Media", type="primary", width='stretch')
 
 if analyse_btn and uploaded_file:
     with st.spinner("Running deepfake detector..."):
         file_size_kb = uploaded_file.size / 1024
         confidence = 0.72 if file_size_kb > 100 else 0.35
-        is_threat = confidence > 0.5
 
-        if confidence > 0.8:
-            risk = "Critical"
-        elif confidence > 0.6:
+        # 3-level risk
+        if confidence > 0.60:
             risk = "High"
-        elif confidence > 0.4:
+        elif confidence > 0.30:
             risk = "Medium"
-        elif confidence > 0.2:
-            risk = "Low"
         else:
-            risk = "Safe"
+            risk = "Low"
+
+        is_threat = risk in ("Medium", "High")
 
         if is_threat:
             indicators = [
@@ -81,18 +78,20 @@ if analyse_btn and uploaded_file:
         st.markdown(f"- {ind}")
 
     st.markdown("**📝 Explanation:**")
-    if is_threat:
+    if risk == "High":
         st.warning("This media shows signs of AI manipulation. It may be a deepfake.")
+    elif risk == "Medium":
+        st.warning("Some manipulation signs detected. Verify source before trusting.")
     else:
         st.success("No obvious deepfake signs detected.")
 
     st.markdown("**🛡️ Recommended Action:**")
-    if risk in ("Critical", "High"):
+    if risk == "High":
         st.error("🚫 Do not act on this media · Report to SOC · Warn user")
     elif risk == "Medium":
         st.warning("⚠️ Flag for manual review")
     else:
-        st.success("✅ No action needed")
+        st.info("ℹ️ Log and monitor")
 
     st.markdown('</div>', unsafe_allow_html=True)
 
