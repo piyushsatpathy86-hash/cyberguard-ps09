@@ -1,15 +1,14 @@
-# app/Home.py
+# app/Home.py — CyberGuard Command Dashboard
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from datetime import datetime, timedelta
-import sys
-import os
+from datetime import datetime
+import sys, os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.config import (
     APP_NAME, APP_TAGLINE, APP_VERSION,
-    RISK_COLORS, RISK_EMOJI, SCENARIOS,
+    RISK_COLORS, RISK_EMOJI, RISK_TAG, SCENARIOS,
     ACCENT_BLUE, ACCENT_CYAN, BG_PRIMARY, CARD_BG, TEXT_MUTED
 )
 
@@ -75,7 +74,7 @@ st.divider()
 kpi_data = {
     "Events Analysed": "1,247",
     "Threats Detected": "89",
-    "Critical / High": "23",
+    "High Risk": "23",
     "Active Incidents": "7",
 }
 
@@ -108,6 +107,7 @@ fig = px.bar(
         "Deepfake": "#8B5CF6",
         "Anomaly": "#06B6D4",
     },
+    labels={"value": "Threats", "variable": "Scenario"},
 )
 fig.update_layout(
     paper_bgcolor="rgba(0,0,0,0)",
@@ -117,19 +117,21 @@ fig.update_layout(
     margin=dict(l=0, r=0, t=10, b=0),
     height=320,
 )
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width='stretch')
 
 st.markdown('<div class="section-header">🚨 Recent Threat Feed</div>', unsafe_allow_html=True)
 
 demo_threats = [
     {"scenario": "Phishing", "detail": "Fake SBI SMS — 'KYC expiry, click link'", "risk": "High", "time": "2 min ago"},
-    {"scenario": "Deepfake", "detail": "AI-generated voice call impersonating CEO", "risk": "Critical", "time": "14 min ago"},
+    {"scenario": "Deepfake", "detail": "AI-generated voice call impersonating CEO", "risk": "High", "time": "14 min ago"},
     {"scenario": "Anomaly", "detail": "Login from impossible travel — Odisha → Russia", "risk": "High", "time": "32 min ago"},
     {"scenario": "Phishing", "detail": "Look-alike domain: icicibank-secure[.]com", "risk": "Medium", "time": "1 hr ago"},
     {"scenario": "Anomaly", "detail": "Password spraying — 47 failed logins, same IP", "risk": "Medium", "time": "2 hr ago"},
+    {"scenario": "Phishing", "detail": "Low-risk marketing email", "risk": "Low", "time": "3 hr ago"},
 ]
 
 for t in demo_threats:
+    risk_lower = t["risk"].lower()
     emoji = RISK_EMOJI.get(t["risk"], "⚪")
     st.markdown(f"""
     <div class="threat-item" style="border-left-color:{RISK_COLORS.get(t['risk'], '#9CA3AF')};">
@@ -142,4 +144,4 @@ for t in demo_threats:
     """, unsafe_allow_html=True)
 
 st.divider()
-st.caption(f"© {datetime.now().year} {APP_NAME} — BPUT Hackathon 2026")
+st.caption(f"© {datetime.now().year} {APP_NAME} — BPUT Hackathon 2026 · Decision-support only.")

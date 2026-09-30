@@ -1,7 +1,6 @@
 # app/pages/1_Phishing.py
 import streamlit as st
-import sys
-import os
+import sys, os
 from datetime import datetime
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
@@ -46,7 +45,7 @@ sample_text = st.text_area(
     placeholder="Example: Dear customer, your SBI account will be blocked. Click here to update KYC: http://sbi-kyc-update.xyz/login",
 )
 
-analyse_btn = st.button("🔍 Analyse Threat", type="primary", use_container_width=True)
+analyse_btn = st.button("🔍 Analyse Threat", type="primary", width='stretch')
 
 if analyse_btn and sample_text.strip():
     with st.spinner("Running NLP classifier..."):
@@ -68,18 +67,16 @@ if analyse_btn and sample_text.strip():
             confidence += 0.15
 
         confidence = min(confidence, 0.99)
-        is_threat = confidence > 0.5
 
-        if confidence > 0.8:
-            risk = "Critical"
-        elif confidence > 0.6:
+        # 3-level risk: Low 0-30, Medium 31-60, High 61-100
+        if confidence > 0.60:
             risk = "High"
-        elif confidence > 0.4:
+        elif confidence > 0.30:
             risk = "Medium"
-        elif confidence > 0.2:
-            risk = "Low"
         else:
-            risk = "Safe"
+            risk = "Low"
+
+        is_threat = risk in ("Medium", "High")
 
     st.markdown('<div class="result-card">', unsafe_allow_html=True)
 
@@ -101,20 +98,20 @@ if analyse_btn and sample_text.strip():
         st.info("No strong indicators found. This looks safe.")
 
     st.markdown("**📝 Explanation:**")
-    if is_threat:
+    if risk == "High":
         st.warning("This message shows classic phishing signs. It uses urgency and a suspicious link to trick you. **Do not click the link.**")
+    elif risk == "Medium":
+        st.warning("Some phishing-like patterns detected. Be cautious.")
     else:
         st.success("No major phishing indicators detected. Still stay cautious.")
 
     st.markdown("**🛡️ Recommended Action:**")
-    if risk in ("Critical", "High"):
+    if risk == "High":
         st.error("🚫 Block URL · Quarantine message · Warn user · Notify SOC")
     elif risk == "Medium":
         st.warning("⚠️ Flag for manual review · Warn user")
-    elif risk == "Low":
-        st.info("ℹ️ Log and monitor")
     else:
-        st.success("✅ No action needed")
+        st.info("ℹ️ Log and monitor")
 
     st.markdown('</div>', unsafe_allow_html=True)
 
