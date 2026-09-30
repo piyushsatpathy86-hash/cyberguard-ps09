@@ -143,5 +143,3 @@ for t in demo_threats:
     </div>
     """, unsafe_allow_html=True)
 
-st.divider()
-st.caption(f"© {datetime.now().year} {APP_NAME} — BPUT Hackathon 2026 · Decision-support only.")
